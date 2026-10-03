@@ -3,22 +3,48 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const path = require("path");
 
 const app = express();
+const port = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
 
+// API routes
 const pandalRoutes = require("./routes/pandalRoutes");
 const crowdRoutes = require("./routes/crowdRoutes");
 const visarjanRoutes = require("./routes/visarjanRoutes");
-const port = process.env.PORT || 5000;
 
 app.use("/api/pandals", pandalRoutes);
 app.use("/api/crowd", crowdRoutes);
 app.use("/api/visarjan", visarjanRoutes);
 
-mongoose.connect(process.env.MONGO_URI)
+// Return JSON for unknown API endpoints
+app.use("/api", (req, res) => {
+  res.status(404).json({
+    message: "API endpoint not found",
+  });
+});
+
+// Serve the built React frontend
+const frontendDirectory = path.join(
+  __dirname,
+  "../frontend/dist"
+);
+
+app.use(express.static(frontendDirectory));
+
+// Express 5 fallback for frontend pages
+app.get("/{*splat}", (req, res) => {
+  res.sendFile(
+    path.join(frontendDirectory, "index.html")
+  );
+});
+
+// Connect to MongoDB before starting the server
+mongoose
+  .connect(process.env.MONGO_URI)
   .then(() => {
     console.log("MongoDB connected successfully");
     console.log("Database:", mongoose.connection.name);
@@ -28,7 +54,6 @@ mongoose.connect(process.env.MONGO_URI)
     });
   })
   .catch((error) => {
-    console.log("MongoDB Connection Error:");
-    console.log(error.message);
+    console.error("MongoDB Connection Error:", error.message);
     process.exitCode = 1;
   });
